@@ -447,7 +447,7 @@ class MenuComponent extends Component
                 'parent' => $parent,
                 'id' => MenuTree::createId(array_filter([$pluginUrl, $controller, $action])),
                 'title' => $menuOptions['alias'][$action] ?? Inflector::humanize(Inflector::underscore($action)),
-                'url' => $this->_url($pluginUrl, $controller, $action, $prefixes),
+                'url' => MenuTree::url($pluginUrl, $controller, $action, $prefixes),
                 'weight' => 0,
             ];
         }
@@ -457,48 +457,10 @@ class MenuComponent extends Component
                 'parent' => $menuOptions['parent'],
                 'id' => $controllerId,
                 'title' => Inflector::humanize(Inflector::underscore($name)),
-                'url' => $this->_url($pluginUrl, $controller, $this->_indexAction($methods, $prefixes), $prefixes),
+                'url' => MenuTree::url($pluginUrl, $controller, MenuTree::indexAction($methods, $prefixes), $prefixes),
                 'weight' => 0,
             ];
         }
-    }
-
-    /**
-     * The URL of an action, with every routing prefix set (true only for the prefix of the action).
-     *
-     * @param string|null $plugin Plugin (underscored).
-     * @param string $controller Controller (underscored).
-     * @param string $action Action (method name).
-     * @param array $prefixes Routing prefixes.
-     * @return array
-     */
-    protected function _url($plugin, $controller, $action, array $prefixes)
-    {
-        $url = ['plugin' => $plugin, 'controller' => $controller, 'action' => $action];
-        foreach ($prefixes as $prefix) {
-            $url[$prefix] = str_starts_with($action, $prefix . '_');
-        }
-
-        return $url;
-    }
-
-    /**
-     * The action of the controller item: the first prefixed index (e.g. admin_index) if the
-     * controller has one, otherwise index.
-     *
-     * @param array $methods Actions of the controller.
-     * @param array $prefixes Routing prefixes.
-     * @return string
-     */
-    protected function _indexAction(array $methods, array $prefixes)
-    {
-        foreach ($prefixes as $prefix) {
-            if (in_array($prefix . '_index', $methods, true)) {
-                return $prefix . '_index';
-            }
-        }
-
-        return 'index';
     }
 
     /**

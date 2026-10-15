@@ -115,4 +115,42 @@ class MenuTree
 
         return $menus;
     }
+
+    /**
+     * The URL of an action, with every routing prefix set (true only for the prefix of the action).
+     *
+     * @param string|null $plugin Plugin (underscored).
+     * @param string $controller Controller (underscored).
+     * @param string $action Action (method name).
+     * @param array $prefixes Routing prefixes.
+     * @return array
+     */
+    public static function url(?string $plugin, string $controller, string $action, array $prefixes): array
+    {
+        $url = ['plugin' => $plugin, 'controller' => $controller, 'action' => $action];
+        foreach ($prefixes as $prefix) {
+            $url[$prefix] = str_starts_with($action, $prefix . '_');
+        }
+
+        return $url;
+    }
+
+    /**
+     * The action of the controller item: the first prefixed index (e.g. admin_index) if the
+     * controller has one, otherwise index.
+     *
+     * @param array $methods Actions of the controller.
+     * @param array $prefixes Routing prefixes.
+     * @return string
+     */
+    public static function indexAction(array $methods, array $prefixes): string
+    {
+        foreach ($prefixes as $prefix) {
+            if (in_array($prefix . '_index', $methods, true)) {
+                return $prefix . '_index';
+            }
+        }
+
+        return 'index';
+    }
 }
