@@ -11,30 +11,37 @@ class MenuTestPostsController extends Controller
 
     public function index(): void
     {
+        // An action of the test controller.
     }
 
     public function add(): void
     {
+        // An action of the test controller.
     }
 
     public function view(): void
     {
+        // An action of the test controller.
     }
 
     public function admin_index(): void
     {
+        // An action of the test controller.
     }
 
     public function admin_add(): void
     {
+        // An action of the test controller.
     }
 
     public function admin_edit(): void
     {
+        // An action of the test controller.
     }
 
     protected function _hidden(): void
     {
+        // An action of the test controller.
     }
 }
 
@@ -50,10 +57,12 @@ class MenuTestCommentsController extends Controller
 
     public function index(): void
     {
+        // An action of the test controller.
     }
 
     public function delete(): void
     {
+        // An action of the test controller.
     }
 }
 
@@ -65,6 +74,7 @@ class MenuTestSecretsController extends Controller
 
     public function index(): void
     {
+        // An action of the test controller.
     }
 }
 
@@ -76,10 +86,12 @@ class MenuTestPagesController extends Controller
 
     public function about(): void
     {
+        // An action of the test controller.
     }
 
     public function contact(): void
     {
+        // An action of the test controller.
     }
 }
 
@@ -89,6 +101,7 @@ class MenuTestBlogArticlesController extends Controller
 
     public function index(): void
     {
+        // An action of the test controller.
     }
 }
 
@@ -172,7 +185,8 @@ class MenuComponentTest extends CakeTestCase
             ->setConstructorArgs([$collection])
             ->onlyMethods(['check'])
             ->getMock();
-        $acl->method('check')->willReturnCallback(function ($aro, $aco) {
+        $acl->method('check')->willReturnCallback(function (...$args) {
+            $aco = $args[1];
             $this->checked[] = $aco;
 
             return !in_array($aco, $this->denied, true);
@@ -181,6 +195,11 @@ class MenuComponentTest extends CakeTestCase
         $menu->initialize($this->Controller);
 
         return $menu;
+    }
+
+    protected function byId(array $items): array
+    {
+        return Hash::combine($items, '{n}.id', '{n}');
     }
 
     protected function ids(array $items): array
@@ -221,7 +240,7 @@ class MenuComponentTest extends CakeTestCase
     public function testGenerateRawMenus(): void
     {
         $this->Menu->generateRawMenus();
-        $items = Hash::combine($this->Menu->rawMenus, '{n}.id', '{n}');
+        $items = $this->byId($this->Menu->rawMenus);
 
         $this->assertSame([
             'menuTestPosts-index', 'menuTestPosts-add', 'menuTestPosts-adminIndex', 'menuTestPosts-adminAdd', 'menuTestPosts',
@@ -256,7 +275,7 @@ class MenuComponentTest extends CakeTestCase
     {
         Configure::delete('Routing.prefixes');
         $this->Menu->generateRawMenus();
-        $items = Hash::combine($this->Menu->rawMenus, '{n}.id', '{n}');
+        $items = $this->byId($this->Menu->rawMenus);
 
         $this->assertArrayHasKey('menuTestPosts-adminEdit', $items);
         $this->assertSame(['plugin' => null, 'controller' => 'menu_test_posts', 'action' => 'index'], $items['menuTestPosts']['url']);
@@ -266,7 +285,7 @@ class MenuComponentTest extends CakeTestCase
     {
         $this->Menu->controllers['Blog'] = ['BlogAppController', 'MenuTestBlogArticlesController'];
         $this->Menu->generateRawMenus();
-        $items = Hash::combine($this->Menu->rawMenus, '{n}.id', '{n}');
+        $items = $this->byId($this->Menu->rawMenus);
 
         $this->assertSame(
             ['plugin' => 'blog', 'controller' => 'menu_test_blog_articles', 'action' => 'index', 'admin' => false],
@@ -312,7 +331,7 @@ class MenuComponentTest extends CakeTestCase
     public function testFormatMenu(): void
     {
         $this->Menu->generateRawMenus();
-        $menu = $this->Menu->formatMenu(Hash::combine($this->Menu->rawMenus, '{n}.id', '{n}'));
+        $menu = $this->Menu->formatMenu($this->byId($this->Menu->rawMenus));
 
         $this->assertSame(['menuTestPosts', 'menuTestPages-about', 'menuTestPages-contact'], $this->ids($menu));
         $this->assertSame(

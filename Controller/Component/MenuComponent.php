@@ -254,12 +254,7 @@ class MenuComponent extends Component
      */
     public function constructMenu($aro)
     {
-        $aroKey = $aro;
-        if (is_array($aro)) {
-            $model = (string)key($aro);
-            $aroKey = $model . ($aro[$model]['id'] ?? '');
-        }
-        $cacheKey = Inflector::slug((string)$aroKey, '_') . '_' . $this->cacheKey;
+        $cacheKey = $this->_aroCacheKey($aro);
         $completeMenu = Cache::read($cacheKey, $this->cacheConfig);
         if (!is_array($completeMenu) || $this->_rebuildMenus) {
             if (!$this->_cacheLoaded) {
@@ -268,20 +263,7 @@ class MenuComponent extends Component
                 $this->generateRawMenus();
                 $this->rawMenus = $this->_mergeMenus($this->rawMenus, $added);
             }
-            $menu = $allowed = [];
-            foreach ($this->rawMenus as $item) {
-                if (isset($menu[$item['id']])) {
-                    continue;
-                }
-                $aco = $this->_aco($item);
-                if ($aco !== null && !isset($allowed[$aco])) {
-                    $allowed[$aco] = (bool)$this->Acl->check($aro, $aco);
-                }
-                if ($aco === null || $allowed[$aco]) {
-                    $menu[$item['id']] = $item;
-                }
-            }
-            $completeMenu = $this->_formatMenu($menu);
+            $completeMenu = $this->_formatMenu($this->_allowedMenus($aro));
             Cache::write($cacheKey, $completeMenu, $this->cacheConfig);
         }
         $this->menu = $completeMenu;
@@ -323,8 +305,11 @@ class MenuComponent extends Component
     public function getControllers()
     {
         $controllers = ['' => App::objects('Controller', null, false)];
-        $plugins = $this->plugins === true ? CakePlugin::loaded() : ($this->plugins ?: []);
-        foreach ($plugins as $plugin) {
+        $plugins = $this->plugins ?: [];
+        if ($plugins === true) {
+            $plugins = CakePlugin::loaded();
+        }
+        foreach ((array)$plugins as $plugin) {
             $controllers[$plugin] = App::objects($plugin . '.Controller', null, false);
         }
 
@@ -455,42 +440,108 @@ class MenuComponent extends Component
         $pluginUrl = $plugin ? Inflector::underscore($plugin) : null;
         $controllerId = $this->_createId(array_filter([$pluginUrl, $controller]));
         $parent = $menuOptions['controllerButton'] ? $controllerId : $menuOptions['parent'];
-        $indexPrefix = null;
 
         foreach ($methods as $action) {
-            $url = ['plugin' => $pluginUrl, 'controller' => $controller, 'action' => $action];
-            foreach ($prefixes as $prefix) {
-                $url[$prefix] = false;
-                if (str_starts_with($action, $prefix . '_')) {
-                    $url[$prefix] = true;
-                    if ($action === $prefix . '_index') {
-                        $indexPrefix = $prefix;
-                    }
-                }
-            }
             $this->rawMenus[] = [
                 'parent' => $parent,
                 'id' => $this->_createId(array_filter([$pluginUrl, $controller, $action])),
                 'title' => $menuOptions['alias'][$action] ?? Inflector::humanize(Inflector::underscore($action)),
-                'url' => $url,
+                'url' => $this->_url($pluginUrl, $controller, $action, $prefixes),
                 'weight' => 0,
             ];
         }
 
         if ($menuOptions['controllerButton']) {
-            // Use the prefixed index (e.g. admin_index) if the controller has one.
-            $url = ['plugin' => $pluginUrl, 'controller' => $controller, 'action' => $indexPrefix ? $indexPrefix . '_index' : 'index'];
-            foreach ($prefixes as $prefix) {
-                $url[$prefix] = $prefix === $indexPrefix;
-            }
             $this->rawMenus[] = [
                 'parent' => $menuOptions['parent'],
                 'id' => $controllerId,
                 'title' => Inflector::humanize(Inflector::underscore($name)),
-                'url' => $url,
+                'url' => $this->_url($pluginUrl, $controller, $this->_indexAction($methods, $prefixes), $prefixes),
                 'weight' => 0,
             ];
         }
+    }
+
+    /**
+     * The URL of an action, with every routing prefix set (true only for the prefix of the action).
+     *
+     * @param string|null $plugin Plugin (underscored).
+     * @param string $controller Controller (underscored).
+     * @param string $action Action (method name).
+     * @param array $prefixes Routing prefixes.
+     * @return array
+     */
+    protected function _url($plugin, $controller, $action, array $prefixes)
+    {
+        $url = ['plugin' => $plugin, 'controller' => $controller, 'action' => $action];
+        foreach ($prefixes as $prefix) {
+            $url[$prefix] = str_starts_with($action, $prefix . '_');
+        }
+
+        return $url;
+    }
+
+    /**
+     * The action of the controller item: the first prefixed index (e.g. admin_index) if the
+     * controller has one, otherwise index.
+     *
+     * @param array $methods Actions of the controller.
+     * @param array $prefixes Routing prefixes.
+     * @return string
+     */
+    protected function _indexAction(array $methods, array $prefixes)
+    {
+        foreach ($prefixes as $prefix) {
+            if (in_array($prefix . '_index', $methods, true)) {
+                return $prefix . '_index';
+            }
+        }
+
+        return 'index';
+    }
+
+    /**
+     * The menu items the ARO may access. Each ACO is checked once.
+     *
+     * @param array|string $aro ARO.
+     * @return array Menu items by id.
+     */
+    protected function _allowedMenus($aro)
+    {
+        $menu = $allowed = [];
+        foreach ($this->rawMenus as $item) {
+            if (isset($menu[$item['id']])) {
+                continue;
+            }
+            $aco = $this->_aco($item);
+            if ($aco === null) {
+                $menu[$item['id']] = $item;
+                continue;
+            }
+            $allowed[$aco] ??= (bool)$this->Acl->check($aro, $aco);
+            if ($allowed[$aco]) {
+                $menu[$item['id']] = $item;
+            }
+        }
+
+        return $menu;
+    }
+
+    /**
+     * Cache key of the menu of an ARO.
+     *
+     * @param array|string $aro ARO.
+     * @return string
+     */
+    protected function _aroCacheKey($aro)
+    {
+        $aroKey = $aro;
+        if (is_array($aro)) {
+            $model = (string)key($aro);
+            $aroKey = $model . ($aro[$model]['id'] ?? '');
+        }
+
+        return Inflector::slug((string)$aroKey, '_') . '_' . $this->cacheKey;
     }
 
     /**
