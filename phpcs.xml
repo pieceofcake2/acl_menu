@@ -8,6 +8,7 @@
     <arg name="parallel" value="16"/>
 
     <file>Controller</file>
+    <file>Lib</file>
     <file>tests</file>
 
     <rule ref="CakePHP2"/>

@@ -16,6 +16,7 @@
  */
 
 App::uses('Component', 'Controller');
+App::uses('MenuTree', 'AclMenu.Lib');
 
 /**
  * Builds a navigation menu of the controller actions the current user may access, checked with
@@ -261,9 +262,9 @@ class MenuComponent extends Component
                 $added = $this->rawMenus;
                 $this->rawMenus = [];
                 $this->generateRawMenus();
-                $this->rawMenus = $this->_mergeMenus($this->rawMenus, $added);
+                $this->rawMenus = MenuTree::merge($this->rawMenus, $added);
             }
-            $completeMenu = $this->_formatMenu($this->_allowedMenus($aro));
+            $completeMenu = MenuTree::format($this->_allowedMenus($aro));
             Cache::write($cacheKey, $completeMenu, $this->cacheConfig);
         }
         $this->menu = $completeMenu;
@@ -401,7 +402,7 @@ class MenuComponent extends Component
             'weight' => 0,
         ];
         if (!$menu['id'] && is_array($menu['url'])) {
-            $menu['id'] = $this->_createId($menu['url']);
+            $menu['id'] = MenuTree::createId($menu['url']);
         }
         if (!$menu['title'] && isset($menu['url']['action'])) {
             $menu['title'] = Inflector::humanize($menu['url']['action']);
@@ -438,13 +439,13 @@ class MenuComponent extends Component
         $methods = $this->filterMethods(get_class_methods($class), $menuOptions['exclude']);
         $controller = Inflector::underscore($name);
         $pluginUrl = $plugin ? Inflector::underscore($plugin) : null;
-        $controllerId = $this->_createId(array_filter([$pluginUrl, $controller]));
+        $controllerId = MenuTree::createId(array_filter([$pluginUrl, $controller]));
         $parent = $menuOptions['controllerButton'] ? $controllerId : $menuOptions['parent'];
 
         foreach ($methods as $action) {
             $this->rawMenus[] = [
                 'parent' => $parent,
-                'id' => $this->_createId(array_filter([$pluginUrl, $controller, $action])),
+                'id' => MenuTree::createId(array_filter([$pluginUrl, $controller, $action])),
                 'title' => $menuOptions['alias'][$action] ?? Inflector::humanize(Inflector::underscore($action)),
                 'url' => $this->_url($pluginUrl, $controller, $action, $prefixes),
                 'weight' => 0,
@@ -513,7 +514,7 @@ class MenuComponent extends Component
             if (isset($menu[$item['id']])) {
                 continue;
             }
-            $aco = $this->_aco($item);
+            $aco = MenuTree::aco($item, $this->aclPath, $this->aclSeparator);
             if ($aco === null) {
                 $menu[$item['id']] = $item;
                 continue;
@@ -545,95 +546,6 @@ class MenuComponent extends Component
     }
 
     /**
-     * The ACO path of a menu item, or null if the item is not checked (no URL array with a controller).
-     *
-     * @param array $item Menu item.
-     * @return string|null
-     */
-    protected function _aco(array $item)
-    {
-        $url = $item['url'] ?? null;
-        if (!is_array($url) || empty($url['controller'])) {
-            return null;
-        }
-        $path = $this->aclPath;
-        if (!empty($url['plugin'])) {
-            $path .= Inflector::camelize($url['plugin']) . '/';
-        }
-        $path .= Inflector::camelize($url['controller']);
-        if (isset($url['action'])) {
-            $path .= $this->aclSeparator . $url['action'];
-        }
-
-        return $path;
-    }
-
-    /**
-     * Make a unique menu item id.
-     *
-     * @param array|string ...$parts Parts, or one array of parts.
-     * @return string
-     */
-    protected function _createId(...$parts)
-    {
-        if (is_array($parts[0])) {
-            $parts = $parts[0];
-            if (isset($parts['controller'])) {
-                $parts = array_filter([$parts['plugin'] ?? null, $parts['controller'], $parts['action'] ?? null]);
-            }
-        }
-
-        return Inflector::variable(implode('-', $parts));
-    }
-
-    /**
-     * Build the menu tree.
-     *
-     * @param array $menu Menu items by id.
-     * @return array
-     */
-    protected function _formatMenu($menu)
-    {
-        $out = $idMap = [];
-        foreach ($menu as $item) {
-            $id = $item['id'];
-            $parentId = $item['parent'];
-            if (isset($idMap[$id]['children'])) {
-                $idMap[$id] = array_merge($item, ['children' => $idMap[$id]['children']]);
-            } else {
-                $idMap[$id] = array_merge($item, ['children' => []]);
-            }
-            if ($parentId) {
-                $idMap[$parentId]['children'][] =& $idMap[$id];
-            } else {
-                $out[] =& $idMap[$id];
-            }
-        }
-        // Drop the references, so that the menu can be cached and changed safely.
-        $out = unserialize(serialize($out));
-
-        return $this->_sortMenu($out);
-    }
-
-    /**
-     * Sort menu items (and their children) by weight, keeping the order of items with the same weight.
-     *
-     * @param array $items Menu items.
-     * @return array
-     */
-    protected function _sortMenu(array $items)
-    {
-        usort($items, fn($one, $two) => ($one['weight'] ?? 0) <=> ($two['weight'] ?? 0));
-        foreach ($items as &$item) {
-            if (!empty($item['children'])) {
-                $item['children'] = $this->_sortMenu($item['children']);
-            }
-        }
-
-        return $items;
-    }
-
-    /**
      * Merge the cached menus with the menus added with addMenu(), keeping the ids unique.
      *
      * @param array $cachedMenus Cached menus.
@@ -641,31 +553,11 @@ class MenuComponent extends Component
      */
     protected function _mergeMenuCache($cachedMenus)
     {
-        $merged = $this->_mergeMenus($cachedMenus, $this->rawMenus);
+        $merged = MenuTree::merge($cachedMenus, $this->rawMenus);
         if (count($merged) > count($cachedMenus)) {
             $this->_rebuildMenus = true;
         }
 
         return $merged;
-    }
-
-    /**
-     * Append the items whose id is not in the menus yet.
-     *
-     * @param array $menus Menus.
-     * @param array $added Items to add.
-     * @return array
-     */
-    protected function _mergeMenus(array $menus, array $added)
-    {
-        $ids = array_flip(array_column($menus, 'id'));
-        foreach ($added as $item) {
-            if (!isset($ids[$item['id']])) {
-                $menus[] = $item;
-                $ids[$item['id']] = true;
-            }
-        }
-
-        return $menus;
     }
 }

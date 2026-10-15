@@ -116,7 +116,7 @@ class TestMenuComponent extends MenuComponent
 
     public function formatMenu(array $menu): array
     {
-        return $this->_formatMenu($menu);
+        return MenuTree::format($menu);
     }
 
     public function mergeMenuCache(array $cached): array
@@ -126,7 +126,7 @@ class TestMenuComponent extends MenuComponent
 
     public function aco(array $item): ?string
     {
-        return $this->_aco($item);
+        return MenuTree::aco($item, $this->aclPath, $this->aclSeparator);
     }
 }
 

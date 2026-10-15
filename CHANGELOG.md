@@ -16,6 +16,7 @@ CakePHP 1.3 to CakePHP 2.
   view variable
 - The menu items are sorted by `weight` (stable) at every level, not only the top level
 - Each ACO is checked once per menu
+- The menu tree functions (ids, ACO paths, merging, sorting) are in the `MenuTree` class (`AclMenu.Lib`)
 - Fixes: `clearCache()` clears the cached menus of all AROs; items added with `addMenu()` no longer
   prevent the controllers from being read; items without a controller URL (e.g. external links) are
   shown without an ACL check instead of causing errors

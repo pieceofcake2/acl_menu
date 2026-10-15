@@ -6,5 +6,6 @@ parameters:
     phpVersion: 80000
     paths:
         - Controller
+        - Lib
     bootstrapFiles:
         - tests/bootstrap.php
