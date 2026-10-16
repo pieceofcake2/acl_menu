@@ -2,11 +2,11 @@
 
 AclMenu プラグインは、現在のユーザーがアクセスできるコントローラのアクションから、ナビゲーション
 メニューを作るコンポーネントを提供します。権限は `AclComponent` (DbAcl) で確認します。ACO のパスは
-`ActionsAuthorize` や [AclExtras](https://pieceofcake2.github.io/acl_extras/) プラグインと同じなので、
+`ActionsAuthorize` や [AclExtras](https://pieceofcake2.github.io/acl_extras/ja/) プラグインと同じなので、
 メニューにはユーザーが実行を許可されたアクションだけが表示されます。
 
 メニューは項目のツリーとしてビューの `$menu` にセットされ、
-[MenuBuilder](https://pieceofcake2.github.io/menu_builder/) プラグインでそのまま表示できます。
+[MenuBuilder](https://pieceofcake2.github.io/menu_builder/ja/) プラグインでそのまま表示できます。
 
 - [インストール](#installation)
 - [ACL の前提条件](#requirements-for-the-acl)
@@ -110,7 +110,7 @@ class AppController extends Controller
 
 ## メニューの表示
 
-[MenuBuilder](https://pieceofcake2.github.io/menu_builder/) プラグインは、デフォルトでビュー変数
+[MenuBuilder](https://pieceofcake2.github.io/menu_builder/ja/) プラグインは、デフォルトでビュー変数
 `$menu` を読み込むので、そのまま表示できます。
 
 ```php
