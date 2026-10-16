@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## Unreleased
+## 1.0.0 - 2026-10-16
 
 First release of `pieceofcake2/acl_menu`, a maintained fork of
 [markstory/cakephp_menu_component](https://github.com/markstory/cakephp_menu_component), ported from
